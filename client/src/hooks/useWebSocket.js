@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
-const WS_URL = 'ws://localhost:3002';
+const WS_URL = import.meta.env.DEV
+  ? 'ws://localhost:3002'
+  : `ws://${window.location.host}/ws`;
 
 export function useWebSocket(sessionId) {
   const [isConnected, setIsConnected] = useState(false);

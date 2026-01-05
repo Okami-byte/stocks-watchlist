@@ -148,4 +148,186 @@ npm start
 ```
 
 Enjoy tracking your stocks!
-# stocks-watchlist
+
+---
+
+## Deployment to AWS EC2
+
+### Prerequisites
+
+- AWS account with EC2 access
+- GitHub repository with this code
+- Domain name (optional, for SSL)
+
+### Step 1: Launch EC2 Instance
+
+1. Go to **AWS Console** → **EC2** → **Launch Instance**
+2. Configure:
+   | Setting | Value |
+   |---------|-------|
+   | **Name** | `stock-watchlist` |
+   | **AMI** | Ubuntu Server 22.04 LTS |
+   | **Instance type** | `t2.micro` (free tier) or `t2.small` |
+   | **Key pair** | Create new → `stock-watchlist-key` → Download `.pem` |
+
+3. **Security Group** inbound rules:
+   | Type | Port | Source |
+   |------|------|--------|
+   | SSH | 22 | Your IP |
+   | HTTP | 80 | 0.0.0.0/0 |
+   | HTTPS | 443 | 0.0.0.0/0 |
+
+4. Launch and wait for instance to start
+
+### Step 2: Connect to EC2
+
+```bash
+# Copy key to safe location (WSL users)
+cp /mnt/c/Users/<WINDOWS_USER>/Downloads/stock-watchlist-key.pem ~/
+chmod 400 ~/stock-watchlist-key.pem
+
+# Connect
+ssh -i ~/stock-watchlist-key.pem ubuntu@<EC2_PUBLIC_IP>
+```
+
+### Step 3: Install Software on EC2
+
+Run on EC2:
+
+```bash
+# Update system
+sudo apt update && sudo apt upgrade -y
+
+# Install Node.js 20
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# Install PM2 (process manager)
+sudo npm install -g pm2
+
+# Install Nginx
+sudo apt install -y nginx
+sudo systemctl enable nginx
+sudo systemctl start nginx
+
+# Verify
+node -v && pm2 -v && nginx -v
+```
+
+### Step 4: Configure Nginx
+
+Run on EC2:
+
+```bash
+# Create app directory
+sudo mkdir -p /var/www/stock-watchlist
+sudo chown ubuntu:ubuntu /var/www/stock-watchlist
+
+# Create Nginx config
+sudo nano /etc/nginx/sites-available/stock-watchlist
+```
+
+Paste this config:
+
+```nginx
+server {
+    listen 80;
+    server_name _;
+
+    # Serve React client (static files)
+    location / {
+        root /var/www/stock-watchlist/client;
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Proxy API requests to Node.js server
+    location /api {
+        proxy_pass http://localhost:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # Proxy WebSocket connections
+    location /ws {
+        proxy_pass http://localhost:3002;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+    }
+}
+```
+
+Save: `Ctrl+O` → `Enter` → `Ctrl+X`
+
+```bash
+# Enable config
+sudo ln -s /etc/nginx/sites-available/stock-watchlist /etc/nginx/sites-enabled/
+sudo rm /etc/nginx/sites-enabled/default
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### Step 5: GitHub Secrets Setup
+
+Go to **GitHub repo** → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**
+
+| Secret Name | Value |
+|-------------|-------|
+| `EC2_HOST` | Your EC2 public IP (or Elastic IP) |
+| `EC2_USER` | `ubuntu` |
+| `EC2_SSH_KEY` | Contents of your `.pem` file |
+| `MONGODB_URI` | Your MongoDB connection string |
+| `FINNHUB_API_KEY` | Your Finnhub API key |
+
+### Step 6: GitHub Actions Workflow
+
+The workflow file is at `.github/workflows/deploy.yml`. It automatically:
+
+1. Builds the React client
+2. Creates `.env` file from secrets
+3. Copies client build + server files to EC2 via rsync
+4. Installs server dependencies
+5. Restarts PM2 process
+
+**Trigger:** Push to `main` branch
+
+### Step 7: Deploy
+
+Push to `main` branch to trigger deployment:
+
+```bash
+git add .
+git commit -m "Setup deployment"
+git push origin main
+```
+
+Monitor progress in **GitHub repo** → **Actions** tab.
+
+### Step 8: Verify Deployment
+
+1. Visit `http://<EC2_PUBLIC_IP>` in your browser
+2. Check PM2 status on EC2: `pm2 status`
+3. View server logs: `pm2 logs stock-server`
+
+### Troubleshooting
+
+**Check Nginx:**
+```bash
+sudo nginx -t
+sudo systemctl status nginx
+sudo tail -f /var/log/nginx/error.log
+```
+
+**Check PM2:**
+```bash
+pm2 status
+pm2 logs stock-server
+```
+
+**Restart services:**
+```bash
+pm2 restart stock-server
+sudo systemctl restart nginx
+```

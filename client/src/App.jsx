@@ -3,7 +3,7 @@ import StockSearch from './components/StockSearch';
 import Watchlist from './components/Watchlist';
 import { useWebSocket } from './hooks/useWebSocket';
 
-const API_URL = 'http://localhost:3001';
+const API_URL = import.meta.env.DEV ? 'http://localhost:3001' : '';
 
 function getOrCreateSessionId() {
   let sessionId = localStorage.getItem('sessionId');
