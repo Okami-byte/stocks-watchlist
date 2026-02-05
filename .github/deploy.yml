@@ -5,20 +5,20 @@ on:
     branches:
       - main
 
-jobs:
+jobs: 
   deploy:
     runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout code
+    steps: 
+      - name: Checkout
         uses: actions/checkout@v4
-
+      
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Install client dependencies
+      - name: Install dependencies
         run: npm --prefix client install
 
       - name: Build client
@@ -50,7 +50,7 @@ jobs:
             --exclude='node_modules' \
             server/ \
             ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/var/www/stock-watchlist/server/
-
+        
       - name: Install dependencies and restart server
         run: |
           ssh -i ~/.ssh/ec2_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'

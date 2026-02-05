@@ -15,7 +15,6 @@ const WS_PORT = process.env.WS_PORT || 3002;
 app.use(cors());
 app.use(express.json());
 
-// Search stocks by symbol or company name
 app.get('/api/search', async (req, res) => {
   try {
     const { q } = req.query;

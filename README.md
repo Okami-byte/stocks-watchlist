@@ -12,18 +12,13 @@ A real-time stock tracking application built with React and Node.js. Search for 
 
 ## Tech Stack
 
-### Frontend
-- React 18
-- Vite
-- WebSocket client
-- CSS3 with modern animations
+**Frontend:** React 18, Vite, WebSocket client, CSS3
 
-### Backend
-- Node.js with Express
-- WebSocket server (ws library)
-- MongoDB with Mongoose
-- Finnhub API integration
-- Axios for HTTP requests
+**Backend:** Node.js, Express, WebSocket (ws), MongoDB/Mongoose, Finnhub API, Axios
+
+---
+
+# 1. Local Development
 
 ## Prerequisites
 
@@ -33,84 +28,16 @@ A real-time stock tracking application built with React and Node.js. Search for 
 
 ## Installation
 
-### 1. Install Server Dependencies
-
 ```bash
-cd server
+# Install all dependencies from root
 npm install
+npm --prefix client install
+npm --prefix server install
 ```
 
-### 2. Install Client Dependencies
+## Environment Setup
 
-```bash
-cd ../client
-npm install
-```
-
-## Running the Application
-
-### 1. Start the Backend Server
-
-```bash
-cd server
-npm run dev
-```
-
-The server will start on:
-- API: `http://localhost:3001`
-- WebSocket: `ws://localhost:3002`
-
-### 2. Start the Frontend
-
-```bash
-cd client
-npm run dev
-```
-
-The client will start on `http://localhost:5173`
-
-## How It Works
-
-### Architecture
-
-```
-Finnhub WS → Node.js Backend → WebSocket Server → React Client
-                ↓
-            MongoDB
-```
-
-1. **Client connects** to backend WebSocket with a session ID
-2. **Backend fetches** the user's watchlist from MongoDB
-3. **Backend subscribes** to Finnhub WebSocket for those stock symbols
-4. **Price updates** are pushed from Finnhub → Backend → Client in real-time
-5. **User actions** (add/remove stocks) update MongoDB and WebSocket subscriptions
-
-### Session Management
-
-- Each browser gets a unique session ID stored in localStorage
-- Watchlist is tied to session ID in MongoDB
-- No login required - sessions persist across browser restarts
-
-### API Endpoints
-
-- `GET /api/search?q=AAPL` - Search for stocks
-- `GET /api/watchlist/:sessionId` - Get user's watchlist
-- `POST /api/watchlist` - Add stock to watchlist
-- `DELETE /api/watchlist/:sessionId/:symbol` - Remove stock from watchlist
-
-### WebSocket Messages
-
-**Client → Server:**
-- `{ type: 'init', sessionId: '...' }` - Initialize connection
-- `{ type: 'subscribe', symbol: 'AAPL' }` - Subscribe to stock
-- `{ type: 'unsubscribe', symbol: 'AAPL' }` - Unsubscribe from stock
-
-**Server → Client:**
-- `{ type: 'price-update', data: { symbol, price, timestamp } }` - Real-time price update
-
-## Environment Variables
-
-The `.env` file in the server directory contains:
+Create `server/.env`:
 
 ```env
 MONGODB_URI=your_mongodb_connection_string
@@ -119,6 +46,18 @@ PORT=3001
 WS_PORT=3002
 ```
 
+## Run Locally
+
+```bash
+# Start both client and server
+npm run dev
+```
+
+This starts:
+- Client: `http://localhost:5173`
+- API: `http://localhost:3001`
+- WebSocket: `ws://localhost:3002`
+
 ## Usage
 
 1. **Search for stocks** - Type a company name or symbol (e.g., "AAPL" or "Apple")
@@ -126,43 +65,21 @@ WS_PORT=3002
 3. **Watch live updates** - Prices update in real-time when market is open
 4. **Remove stocks** - Click "Remove" to delete from watchlist
 
-## Notes
-
-- Stock prices update in real-time during market hours (9:30 AM - 4:00 PM ET)
-- Finnhub free tier allows 60 API calls/minute
-- MongoDB stores watchlist data persistently
-- Session ID in localStorage ensures your watchlist persists across visits
-
-## Development
-
-To run in production mode:
-
-```bash
-# Build client
-cd client
-npm run build
-
-# Start server in production
-cd ../server
-npm start
-```
-
-Enjoy tracking your stocks!
-
 ---
 
-## Deployment to AWS EC2
+# 2. Deployment to AWS EC2
 
-### Prerequisites
+## Prerequisites
 
 - AWS account with EC2 access
 - GitHub repository with this code
-- Domain name (optional, for SSL)
+- MongoDB Atlas with IP whitelist configured
 
-### Step 1: Launch EC2 Instance
+## Step 1: Launch EC2 Instance
 
 1. Go to **AWS Console** → **EC2** → **Launch Instance**
 2. Configure:
+
    | Setting | Value |
    |---------|-------|
    | **Name** | `stock-watchlist` |
@@ -171,6 +88,7 @@ Enjoy tracking your stocks!
    | **Key pair** | Create new → `stock-watchlist-key` → Download `.pem` |
 
 3. **Security Group** inbound rules:
+
    | Type | Port | Source |
    |------|------|--------|
    | SSH | 22 | Your IP |
@@ -179,7 +97,7 @@ Enjoy tracking your stocks!
 
 4. Launch and wait for instance to start
 
-### Step 2: Connect to EC2
+## Step 2: Connect to EC2
 
 ```bash
 # Copy key to safe location (WSL users)
@@ -190,7 +108,7 @@ chmod 400 ~/stock-watchlist-key.pem
 ssh -i ~/stock-watchlist-key.pem ubuntu@<EC2_PUBLIC_IP>
 ```
 
-### Step 3: Install Software on EC2
+## Step 3: Install Software on EC2
 
 Run on EC2:
 
@@ -214,7 +132,7 @@ sudo systemctl start nginx
 node -v && pm2 -v && nginx -v
 ```
 
-### Step 4: Configure Nginx
+## Step 4: Configure Nginx
 
 Run on EC2:
 
@@ -269,7 +187,7 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-### Step 5: GitHub Secrets Setup
+## Step 5: GitHub Secrets Setup
 
 Go to **GitHub repo** → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**
 
@@ -281,37 +199,31 @@ Go to **GitHub repo** → **Settings** → **Secrets and variables** → **Actio
 | `MONGODB_URI` | Your MongoDB connection string |
 | `FINNHUB_API_KEY` | Your Finnhub API key |
 
-### Step 6: GitHub Actions Workflow
+## Step 6: MongoDB Atlas IP Whitelist
 
-The workflow file is at `.github/workflows/deploy.yml`. It automatically:
+1. Go to **MongoDB Atlas** → **Network Access**
+2. Click **Add IP Address**
+3. Add your EC2 public IP or `0.0.0.0/0` (allow all)
 
-1. Builds the React client
-2. Creates `.env` file from secrets
-3. Copies client build + server files to EC2 via rsync
-4. Installs server dependencies
-5. Restarts PM2 process
+## Step 7: Deploy
 
-**Trigger:** Push to `main` branch
-
-### Step 7: Deploy
-
-Push to `main` branch to trigger deployment:
+Push to `main` branch to trigger automatic deployment:
 
 ```bash
 git add .
-git commit -m "Setup deployment"
+git commit -m "Deploy changes"
 git push origin main
 ```
 
 Monitor progress in **GitHub repo** → **Actions** tab.
 
-### Step 8: Verify Deployment
+## Step 8: Verify Deployment
 
 1. Visit `http://<EC2_PUBLIC_IP>` in your browser
 2. Check PM2 status on EC2: `pm2 status`
 3. View server logs: `pm2 logs stock-server`
 
-### Troubleshooting
+## Troubleshooting
 
 **Check Nginx:**
 ```bash
@@ -331,3 +243,30 @@ pm2 logs stock-server
 pm2 restart stock-server
 sudo systemctl restart nginx
 ```
+
+---
+
+## Architecture
+
+```
+Finnhub WS → Node.js Backend → WebSocket Server → React Client
+                ↓
+            MongoDB
+```
+
+## API Endpoints
+
+- `GET /api/search?q=AAPL` - Search for stocks
+- `GET /api/watchlist/:sessionId` - Get user's watchlist
+- `POST /api/watchlist` - Add stock to watchlist
+- `DELETE /api/watchlist/:sessionId/:symbol` - Remove stock from watchlist
+
+## WebSocket Messages
+
+**Client → Server:**
+- `{ type: 'init', sessionId: '...' }` - Initialize connection
+- `{ type: 'subscribe', symbol: 'AAPL' }` - Subscribe to stock
+- `{ type: 'unsubscribe', symbol: 'AAPL' }` - Unsubscribe from stock
+
+**Server → Client:**
+- `{ type: 'price-update', data: { symbol, price, timestamp } }` - Real-time price update
