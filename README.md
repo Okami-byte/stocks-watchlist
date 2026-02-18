@@ -1,6 +1,6 @@
 # Stock Watchlist App
 
-A real-time stock tracking application built with React and Node.js. Search for stocks, add them to your watchlist, and see live price updates via WebSocket. Devin's Version 2.0
+A real-time stock tracking application built with React and Node.js. Search for stocks, add them to your watchlist, and see live price updates via WebSocket. Devin's Version 3.0
 
 ## Features
 
